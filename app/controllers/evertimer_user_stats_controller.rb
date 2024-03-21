@@ -67,7 +67,7 @@ class EvertimerUserStatsController < ApplicationController
   end
 
   def billable_available?
-    @custom_field_billable = TimeEntryCustomField.find_by(name: 'Non-Billable', type: 'TimeEntryCustomField', visible: true)
+    @custom_field_billable = TimeEntryCustomField.find_by(name: 'Non-Billable', type: 'TimeEntryCustomField')
     @activity_billable = Enumeration.find_by(name: "Non-billable", type: "TimeEntryActivity", active: true)
 
     @custom_field_billable || @activity_billable
