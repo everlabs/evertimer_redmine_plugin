@@ -50,7 +50,11 @@ Installation
 git clone https://github.com/everlabs/evertimer_redmine_plugin.git
 ```
 
-2. After copying the plugin into the appropriate directory, restart Redmine to apply the changes.
+2. After copying the plugin into the appropriate directory, run migrations
+```bash
+rake redmine:plugins:migrate RAILS_ENV=production
+```
+3. Restart Redmine to apply the changes.
 
 Issues
 ------
