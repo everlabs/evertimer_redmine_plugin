@@ -73,29 +73,3 @@ class EvertimerUserStatsController < ApplicationController
     @custom_field_billable || @activity_billable
   end
 end
-
-
-
-respond_to do |format|
-  format.html do
-    @entry_count = scope.count
-    @entry_pages = Paginator.new @entry_count, per_page_option, params['page']
-    @entries = scope.offset(@entry_pages.offset).limit(@entry_pages.per_page).to_a
-
-    render :layout => !request.xhr?
-  end
-  format.api do
-    @entry_count = scope.count
-    @offset, @limit = api_offset_and_limit
-    @entries = scope.offset(@offset).limit(@limit).preload(:custom_values => :custom_field).to_a
-  end
-  format.atom do
-    entries = scope.limit(Setting.feeds_limit.to_i).reorder("#{TimeEntry.table_name}.created_on DESC").to_a
-    render_feed(entries, :title => l(:label_spent_time))
-  end
-  format.csv do
-    # Export all entries
-    @entries = scope.to_a
-    send_data(query_to_csv(@entries, @query, params), :type => 'text/csv; header=present', :filename => 'timelog.csv')
-  end
-end
