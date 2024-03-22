@@ -36,9 +36,9 @@ class EvertimerUserStatsController < ApplicationController
     when :today
       DateTime.current
     when :this_week
-      DateTime.current.beginning_of_week..
+      DateTime.current.beginning_of_week..DateTime.current
     when :this_month
-      DateTime.current.beginning_of_month..
+      DateTime.current.beginning_of_month..DateTime.current
     end
   end
 
