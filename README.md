@@ -7,9 +7,9 @@ Compatibility
 
 The plugin has been tested and is compatible with the following versions:
 
-- Redmine v5.0.5
-- Ruby 3.1.3
-- Rails 6.1.7.2
+- Redmine v5.0.5, v4.1.1
+- Ruby v3.1.3, v2.6.6
+- Rails v6.1.7.2, v5.2.4.2
 
 Features
 --------
@@ -50,7 +50,11 @@ Installation
 git clone https://github.com/everlabs/evertimer_redmine_plugin.git
 ```
 
-2. After copying the plugin into the appropriate directory, restart Redmine to apply the changes.
+2. After copying the plugin into the appropriate directory, run migrations
+```bash
+rake redmine:plugins:migrate RAILS_ENV=production
+```
+3. Restart Redmine to apply the changes.
 
 Issues
 ------
