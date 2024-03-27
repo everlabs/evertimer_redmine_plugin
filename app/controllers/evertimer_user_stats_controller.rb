@@ -34,11 +34,11 @@ class EvertimerUserStatsController < ApplicationController
   def calculate_date_range(period)
     case period
     when :today
-      DateTime.current
+      Date.current
     when :this_week
-      DateTime.current.beginning_of_week..DateTime.current
+      Date.current.beginning_of_week..Date.current.end_of_week
     when :this_month
-      DateTime.current.beginning_of_month..DateTime.current
+      Date.current.beginning_of_month..Date.current.end_of_month
     end
   end
 
