@@ -77,7 +77,7 @@ License Summary
 You can copy and paste the Apache 2.0 license summary from below.
 
 ```
-Copyright 2024 by Everlabs
+Copyright 2025 by Everlabs
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

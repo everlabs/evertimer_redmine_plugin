@@ -1,3 +1,4 @@
-# English strings go here for Rails i18n
 en:
-  # my_label: "My label"
+  non_billable_time: "Non-billable time"
+  non_billable_time_explanation: "Logging time to issues with a specified Tracker or Issue status, or logging time with a specified Activity or Custom Fields, will be considered non-billable in the EverTimer Chrome extension"
+  text_time_entries_destroy_confirmation: "Are you sure you want to remove the custom field from the non-billable time configuration?"

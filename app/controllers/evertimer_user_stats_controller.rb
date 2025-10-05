@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class EvertimerUserStatsController < ApplicationController
-  accept_api_auth :index
+  accept_api_auth :index, :custom_fields
   skip_before_action :session_expiration, :set_localization
 
   def index
@@ -11,24 +11,27 @@ class EvertimerUserStatsController < ApplicationController
       this_month: calculate_hours(:this_month)
     }
 
-    if billable_available?
-      data.merge!(
-        today_billable: calculate_hours(:today, billable: true),
-        this_week_billable: calculate_hours(:this_week, billable: true),
-        this_month_billable: calculate_hours(:this_month, billable: true)
-      )
-    end
+    data.merge!(
+      today_billable: calculate_hours(:today, billable: true),
+      this_week_billable: calculate_hours(:this_week, billable: true),
+      this_month_billable: calculate_hours(:this_month, billable: true)
+    )
 
     render json: data, status: :ok
+  end
+
+  def custom_fields
+    render json: TimeEntryCustomField.visible.sorted.distinct, status: :ok
   end
 
   private
 
   def calculate_hours(period, billable: false)
     date_range = calculate_date_range(period)
-    time_entries = time_entries_for_range(date_range)
-    time_entries = filter_billable(time_entries) if billable
-    sum_of_hours(time_entries)
+    time_entries = TimeEntry.where(user: User.current, spent_on: date_range)
+    time_entries = non_billable_time_entries(time_entries) if billable
+
+    time_entries.sum(:hours)
   end
 
   def calculate_date_range(period)
@@ -36,40 +39,81 @@ class EvertimerUserStatsController < ApplicationController
     when :today
       Date.current
     when :this_week
-      Date.current.beginning_of_week..Date.current.end_of_week
+      Date.current.all_week
     when :this_month
-      Date.current.beginning_of_month..Date.current.end_of_month
+      Date.current.all_month
     end
   end
 
-  def time_entries_for_range(date_range)
-    TimeEntry.where(user: User.current, spent_on: date_range)
-  end
+  def non_billable_time_entries(query)
+    time_entries = TimeEntry.arel_table
+    subquery_managers = []
 
-  def filter_billable(time_entries)
-    return time_entries unless billable_available?
-
-    filtered_entries = time_entries
-
-    if @custom_field_billable
-      filtered_entries = filtered_entries
-                           .joins(:custom_values)
-                           .where(custom_values: { custom_field_id: @custom_field_billable.id, value: '0' })
+    # 1. Non-billable by project
+    project_ids = Setting.plugin_evertimer_redmine_plugin['non_billable_projects']&.compact_blank&.map(&:to_i)
+    if project_ids&.any?
+      subquery_managers << TimeEntry
+        .where(project_id: project_ids)
+        .select(:id)
+        .arel
     end
 
-    filtered_entries = filtered_entries.where.not(activity_id: @activity_billable.id) if @activity_billable
+    # 2. Non-billable by activity
+    activity_ids = Setting.plugin_evertimer_redmine_plugin['non_billable_time_entry_activities']&.compact_blank&.map(&:to_i)
+    if activity_ids&.any?
+      subquery_managers << TimeEntry
+        .where(activity_id: activity_ids)
+        .select(:id)
+        .arel
+    end
 
-    filtered_entries
-  end
+    # 3. Non-billable by issue tracker
+    tracker_ids = Setting.plugin_evertimer_redmine_plugin['non_billable_trackers']&.compact_blank&.map(&:to_i)
+    if tracker_ids&.any?
+      subquery_managers << TimeEntry
+        .joins(:issue)
+        .where(issues: {tracker_id: tracker_ids})
+        .select(:id)
+        .arel
+    end
 
-  def sum_of_hours(time_entries)
-    time_entries.sum(:hours)
-  end
+    # 4. Non-billable by issue status
+    status_ids = Setting.plugin_evertimer_redmine_plugin['non_billable_issue_statuses']&.compact_blank&.map(&:to_i)
+    if status_ids&.any?
+      subquery_managers << TimeEntry
+        .joins(:issue)
+        .where(issues: {status_id: status_ids})
+        .select(:id)
+        .arel
+    end
 
-  def billable_available?
-    @custom_field_billable = TimeEntryCustomField.find_by(name: 'Non-Billable', type: 'TimeEntryCustomField')
-    @activity_billable = Enumeration.find_by(name: "Non-billable", type: "TimeEntryActivity", active: true)
+    # 5. Non-billable by custom fields
+    if Setting.plugin_evertimer_redmine_plugin['non_billable_custom_fields']&.compact_blank&.any?
+      Setting.plugin_evertimer_redmine_plugin['non_billable_custom_fields'].each do |field_id, value|
+        subquery_managers << TimeEntry
+          .joins(:custom_values)
+          .where(custom_values: {customized_type: 'TimeEntry',
+                                 custom_field_id: field_id.to_i,
+                                 value: value})
+          .select(:id)
+          .arel
+      end
+    end
 
-    @custom_field_billable || @activity_billable
+    # Combine all subqueries with UNION using Arel
+    if subquery_managers.any?
+      union_expression = subquery_managers.shift.ast
+
+      subquery_managers.each do |manager|
+        union_expression = Arel::Nodes::Union.new(union_expression, manager.ast)
+      end
+
+      union_group = Arel::Nodes::Grouping.new(union_expression)
+
+      # Exclude time entries whose IDs are in the UNION result
+      query = query.where.not(time_entries[:id].in(union_group))
+    end
+
+    query
   end
 end

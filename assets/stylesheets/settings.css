@@ -1,0 +1,43 @@
+.evertimer-settings {
+    padding: 10px;
+}
+
+.evertimer-settings .query-columns label {
+    margin: 0;
+    width: auto;
+    font-weight: normal;
+    float: none;
+    line-height: inherit;
+    text-align: unset;
+}
+
+.evertimer-settings .non-billable-config .fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.evertimer-settings #customFieldsTable th {
+    font-size: 14px;
+}
+
+.evertimer-settings #customFieldsTable:has(tbody:empty) .field-name  {
+    width: 50%;
+}
+
+.evertimer-settings #customFieldsTable .field-name {
+    text-align: right;
+    min-width: 50px;
+    max-width: 50%;
+    padding: 4px 10px 4px 4px;
+}
+
+.evertimer-settings #customFieldsTable .field-name label {
+    float: none;
+    margin: 0;
+}
+
+.evertimer-settings #customFieldsTable .field-value {
+    text-align: left;
+    padding: 4px 4px 4px 10px;
+}
