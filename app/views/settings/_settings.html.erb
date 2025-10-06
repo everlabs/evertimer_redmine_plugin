@@ -1,0 +1,7 @@
+<% content_for :header_tags do %>
+  <%= stylesheet_link_tag :settings, plugin: :evertimer_redmine_plugin %>
+<% end %>
+
+<div class="evertimer-settings">
+  <%= render partial: 'non_billable_configuration' %>
+</div>
