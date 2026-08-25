@@ -9,6 +9,24 @@ class EvertimerUserStatsController < ApplicationController
   # and in the :general_first_day_of_week locale key (see application_helper.rb:1634-1638).
   DAY_SYMBOLS = %i[monday tuesday wednesday thursday friday saturday sunday].freeze
 
+  # The only custom-field attributes the extension reads. Everything else on the
+  # record is internal Redmine configuration (visibility, filtering, positioning)
+  # that no client needs, so it stays out of the payload.
+  WHITELISTED_CUSTOM_FIELD_ATTRIBUTES = %w[
+    id
+    name
+    description
+    field_format
+    format_store
+    possible_values
+    multiple
+    min_length
+    max_length
+    regexp
+    is_required
+    default_value
+  ].freeze
+
   def index
     with_user = params[:include] == 'user'
 
@@ -51,7 +69,11 @@ class EvertimerUserStatsController < ApplicationController
   end
 
   def custom_fields
-    render json: TimeEntryCustomField.visible.sorted.distinct, status: :ok
+    # Same scope chain and same top-level-array shape as before; only the set of
+    # serialized attributes narrows. possible_values (serialize) and format_store
+    # (store) still come out as an array and a hash respectively.
+    render json: TimeEntryCustomField.visible.sorted.distinct.as_json(only: WHITELISTED_CUSTOM_FIELD_ATTRIBUTES),
+           status: :ok
   end
 
   private
