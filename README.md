@@ -140,7 +140,8 @@ curl -i -H "X-Redmine-API-Key: your_api_key" -H "Accept: application/json" \
 A matching validator returns **`304 Not Modified` with an empty body**, before any statistics query runs.
 
 - Validators are **per variant**: the ETag of `/evertimer/user_stats` and the ETag of `/evertimer/user_stats?include=user` are different values and each rejects the other. Cache them separately.
-- The plain ETag changes when the user's time entries change or the plugin settings are saved. The `include=user` ETag additionally changes when the user's own profile changes, so a renamed user is never served a stale name behind a 304.
+- The plain ETag changes when the user's time entries change, when an issue those entries point at changes (so closing an issue or changing its tracker re-splits billable vs non-billable immediately), or when the plugin settings are saved. The `include=user` ETag additionally changes when the user's own profile changes, so a renamed user is never served a stale name behind a 304.
+- **One known staleness class:** editing *only* a time entry's custom-field value does not move the validator. `custom_values` carries no timestamp column, and Redmine saves custom values without touching the parent `time_entries` row, so there is nothing cheap to detect. If the plugin is configured with non-billable **custom-field** criteria, such an edit can be served from cache for up to the fragment lifetime (24 hours) or until anything else in the basis moves. Non-billable criteria based on projects, activities, trackers or issue statuses are not affected.
 
 ### Authentication and errors
 

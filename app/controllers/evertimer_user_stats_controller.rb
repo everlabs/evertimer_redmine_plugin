@@ -129,12 +129,33 @@ class EvertimerUserStatsController < ApplicationController
 
   # Cache-key / ETag basis. The date-window components make the key change at the
   # user's midnight (and whenever the week start or time zone moves the window);
-  # MAX(updated_on) catches edits, COUNT(*) catches deletions.
+  # MAX(time_entries.updated_on) catches edits, COUNT(*) catches deletions.
+  #
+  # The billable split also reads issues.tracker_id and issues.status_id (see
+  # non_billable_predicate_sql), and none of those edits touch time_entries — closing an
+  # issue, changing its tracker or moving it across projects would otherwise be served
+  # stale from the fragment cache and behind a 304 until the day window rolled. So the
+  # basis also carries MAX(issues.updated_on) over the issues the scanned entries point
+  # at. It rides on the same aggregate query via a LEFT OUTER JOIN, which cannot multiply
+  # rows (time_entries.issue_id is a single nullable FK), so COUNT(*) is unaffected.
+  #
+  # Still NOT covered: editing only a time entry's custom-field value. custom_values has
+  # no timestamp column at all, and Redmine writes custom values in an after_save without
+  # touching the parent row, so there is nothing cheap to aggregate. That staleness class
+  # is documented in the README and bounded by the fragment's expires_in.
   def stats_key_basis(ranges, scan_from, scan_to)
-    max_updated_on, entries_count =
+    entries_table = TimeEntry.table_name
+    issues_table  = Issue.table_name
+
+    max_updated_on, entries_count, max_issue_updated_on =
       TimeEntry
         .where(user_id: User.current.id, spent_on: scan_from..scan_to)
-        .pluck(Arel.sql('MAX(updated_on), COUNT(*)'))
+        .joins("LEFT OUTER JOIN #{issues_table} ON #{issues_table}.id = #{entries_table}.issue_id")
+        .pluck(
+          Arel.sql(
+            "MAX(#{entries_table}.updated_on), COUNT(*), MAX(#{issues_table}.updated_on)"
+          )
+        )
         .first
 
     settings_stamp = Setting.find_by(name: 'plugin_evertimer_redmine_plugin')&.updated_on || 'unsaved'
@@ -148,7 +169,9 @@ class EvertimerUserStatsController < ApplicationController
       ranges[:month].end.iso8601,
       max_updated_on,
       entries_count,
-      settings_stamp
+      settings_stamp,
+      # Appended last so the pre-existing components keep their exact positions.
+      max_issue_updated_on
     ]
   end
 
