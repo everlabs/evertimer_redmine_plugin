@@ -61,7 +61,17 @@ class EvertimerUserStatsController < ApplicationController
       stats_json = compute_stats_json(ranges, scan_from, scan_to)
       # write_fragment requires a String (it calls #to_str) and no-ops safely when
       # perform_caching is false.
-      write_fragment(key_basis, stats_json)
+      #
+      # expires_in is required for hygiene, not correctness: the key embeds three date
+      # windows, so it rotates at every user's midnight and on every settings save, and
+      # each rotation orphans the previous entry. Redmine ships perform_caching = true in
+      # production without configuring a cache_store, which means Rails' default FileStore
+      # in tmp/cache — a store that never evicts entries lacking an expiry. Without this,
+      # every active user leaves at least one dead fragment per day until an operator
+      # clears tmp/cache by hand. The key is guaranteed dead once the day window rolls, so
+      # 24 hours is the shortest value that never truncates a still-valid entry, and it
+      # also bounds the custom-field staleness class documented in the README.
+      write_fragment(key_basis, stats_json, expires_in: 24.hours)
     end
 
     if with_user
