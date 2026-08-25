@@ -10,16 +10,26 @@ class EvertimerUserStatsController < ApplicationController
   DAY_SYMBOLS = %i[monday tuesday wednesday thursday friday saturday sunday].freeze
 
   def index
+    with_user = params[:include] == 'user'
+
     ranges    = stats_date_ranges
     scan_from = [ranges[:week].begin, ranges[:month].begin].min
     scan_to   = [ranges[:week].end, ranges[:month].end].max
 
     key_basis = stats_key_basis(ranges, scan_from, scan_to)
 
+    # The user hash is never cached (it is appended per request), so its freshness
+    # has to ride on the ETag instead: a profile edit moves User#updated_on and
+    # busts only the include=user ETag. The literal marker keeps the two variants
+    # of the same stats from ever colliding on one ETag value.
+    etag_basis = with_user ? key_basis + [User.current.updated_on, 'user'] : key_basis
+
     # fresh_when (inside stale?) answers 304 with an empty body itself, before any
     # fragment lookup or stats SQL runs (actionpack conditional_get.rb:121).
-    return unless stale?(etag: key_basis)
+    return unless stale?(etag: etag_basis)
 
+    # The fragment key stays the stats-only basis in BOTH cases: the cache holds
+    # the stats JSON and nothing else.
     stats_json = read_fragment(key_basis)
     unless stats_json
       stats_json = compute_stats_json(ranges, scan_from, scan_to)
@@ -28,8 +38,16 @@ class EvertimerUserStatsController < ApplicationController
       write_fragment(key_basis, stats_json)
     end
 
-    # Passthrough render keeps cached and freshly computed responses byte-identical.
-    render body: stats_json, content_type: 'application/json'
+    if with_user
+      # Parse/merge rather than string surgery: the six stats keys keep their order
+      # (Ruby hashes are insertion-ordered) and "user" is appended last.
+      payload = JSON.parse(stats_json)
+      payload['user'] = user_payload
+      render json: payload, status: :ok
+    else
+      # Passthrough render keeps cached and freshly computed responses byte-identical.
+      render body: stats_json, content_type: 'application/json'
+    end
   end
 
   def custom_fields
@@ -37,6 +55,32 @@ class EvertimerUserStatsController < ApplicationController
   end
 
   private
+
+  # Exactly the fields the extension stores for the signed-in user, under Redmine's
+  # own names (users/show.api.rsb:2-12). The API credential is deliberately absent:
+  # the caller already holds the key it authenticated with, so echoing it would only
+  # widen the blast radius of a leaked response.
+  def user_payload
+    user = User.current
+
+    payload = {
+      'id' => user.id,
+      'firstname' => user.firstname,
+      'lastname' => user.lastname
+    }
+
+    # Same guard and same helper call as core's users API (users/show.api.rsb:12) —
+    # key absent (not null) when the user has no mail or Gravatar is off, which the
+    # extension's default-avatar fallback already covers.
+    # Called through `helpers` because gravatar_url internally uses the view helper
+    # `h`, which a bare controller instance does not respond to.
+    if user.mail.present? && Setting.gravatar_enabled?
+      payload['avatar_url'] =
+        helpers.gravatar_url(user.mail, {:rating => nil, :size => nil, :default => Setting.gravatar_default})
+    end
+
+    payload
+  end
 
   # Date ranges follow the requesting user's time zone and Redmine's start-of-week
   # setting, falling back to the locale default when the setting is blank.
