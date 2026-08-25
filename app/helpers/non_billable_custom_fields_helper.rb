@@ -34,8 +34,12 @@ module NonBillableCustomFieldsHelper
     all_custom_field_values.select { |el| el.custom_field.id.in?(selected_option_ids) }.map do |cfv|
       val = Setting.plugin_evertimer_redmine_plugin['non_billable_custom_fields'][cfv.custom_field.id.to_s]
       # Rails-6.1-only blank compaction is unavailable on Rails 5.2 / Redmine 4.1.1 —
-      # the destructive rejection below is the compatible equivalent (PLUG-02 sweep).
-      val.reject!(&:blank?) if val.is_a?(Array)
+      # the non-destructive rejection below is the compatible equivalent (PLUG-02 sweep).
+      # It must stay non-destructive: Setting.plugin_evertimer_redmine_plugin returns the
+      # object memoized in Setting's process-global @cached_settings hash, shared across
+      # every request in the process, so `reject!` would edit Redmine's cached settings
+      # in place from a view helper and silently diverge them from the persisted value.
+      val = val.reject(&:blank?) if val.is_a?(Array)
       cfv.value = val
       cfv
     end
