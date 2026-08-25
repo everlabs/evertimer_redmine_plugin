@@ -147,7 +147,16 @@ class EvertimerUserStatsController < ApplicationController
   # One conditional-aggregation pass over the scan window returns all six figures.
   def compute_stats_json(ranges, scan_from, scan_to)
     table = TimeEntry.table_name
-    billable = "NOT (#{non_billable_predicate_sql})"
+
+    # The billable predicate is already fully sanitized by non_billable_predicate_sql
+    # (every settings-derived value is bound there), so it must NOT be interpolated into
+    # the array handed to the outer sanitize pass. replace_bind_variables validates arity
+    # with statement.count("?") (activerecord sanitization.rb), and that count includes
+    # '?' characters sitting inside quoted string literals. An admin-configured
+    # custom-field value such as 'Billable?' would therefore inflate the placeholder
+    # count and raise ActiveRecord::PreparedStatementInvalid on every cache-miss request.
+    # Sanitize the skeleton against a sentinel first, then splice the predicate in.
+    billable_marker = '__EVERTIMER_BILLABLE__'
 
     sql = TimeEntry.sanitize_sql_array(
       [
@@ -156,9 +165,9 @@ class EvertimerUserStatsController < ApplicationController
             SUM(CASE WHEN #{table}.spent_on = ? THEN #{table}.hours END) AS today,
             SUM(CASE WHEN #{table}.spent_on BETWEEN ? AND ? THEN #{table}.hours END) AS this_week,
             SUM(CASE WHEN #{table}.spent_on BETWEEN ? AND ? THEN #{table}.hours END) AS this_month,
-            SUM(CASE WHEN #{table}.spent_on = ? AND #{billable} THEN #{table}.hours END) AS today_billable,
-            SUM(CASE WHEN #{table}.spent_on BETWEEN ? AND ? AND #{billable} THEN #{table}.hours END) AS this_week_billable,
-            SUM(CASE WHEN #{table}.spent_on BETWEEN ? AND ? AND #{billable} THEN #{table}.hours END) AS this_month_billable
+            SUM(CASE WHEN #{table}.spent_on = ? AND #{billable_marker} THEN #{table}.hours END) AS today_billable,
+            SUM(CASE WHEN #{table}.spent_on BETWEEN ? AND ? AND #{billable_marker} THEN #{table}.hours END) AS this_week_billable,
+            SUM(CASE WHEN #{table}.spent_on BETWEEN ? AND ? AND #{billable_marker} THEN #{table}.hours END) AS this_month_billable
           FROM #{table}
           WHERE #{table}.user_id = ? AND #{table}.spent_on BETWEEN ? AND ?
         SQL
@@ -172,6 +181,12 @@ class EvertimerUserStatsController < ApplicationController
         scan_from, scan_to
       ]
     )
+
+    # Block form on purpose: a String replacement argument would interpret backslash
+    # escapes (\\0, \\1, \\\\) that can legitimately occur inside a quoted custom-field
+    # value, corrupting the spliced predicate.
+    billable = "NOT (#{non_billable_predicate_sql})"
+    sql = sql.gsub(billable_marker) { billable }
 
     row = TimeEntry.connection.select_one(sql) || {}
 
