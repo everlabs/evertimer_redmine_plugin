@@ -3,7 +3,15 @@
 class EvertimerUserStatsController < ApplicationController
   accept_api_auth :index, :custom_fields
   before_action :require_login
-  skip_before_action :session_expiration
+
+  # session_expiration is deliberately NOT skipped: it is the only place Redmine
+  # verifies the server-side session token (application_controller.rb -> session_expired?
+  # -> User.verify_session_token). find_current_user's session branch trusts
+  # session[:user_id] on its own, and Redmine's cookie session store keeps cookies
+  # cryptographically valid forever, so skipping the check would let a logged-out,
+  # expired or stolen cookie keep authenticating here indefinitely. The callback is a
+  # no-op for the extension anyway: it returns immediately unless session[:user_id] is
+  # set, and API-key requests carry no session.
 
   # Redmine stores start_of_week as 1..7 (monday..sunday), both in Setting.start_of_week
   # and in the :general_first_day_of_week locale key (see application_helper.rb:1634-1638).
