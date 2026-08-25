@@ -4,9 +4,9 @@ Redmine::Plugin.register :evertimer_redmine_plugin do
   name 'Evertimer plugin'
   author 'Everlabs'
   description 'Extends the capabilities of the EverTimer Chrome extension'
-  version '0.0.1'
+  version '1.0.0'
   url 'https://github.com/everlabs/evertimer_redmine_plugin'
-  author_url 'http://everlabs.com'
+  author_url 'https://everlabs.com'
 
   settings default: {
     non_billable_projects: [],
