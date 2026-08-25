@@ -14,7 +14,7 @@ module NonBillableCustomFieldsHelper
       # Custom field input
       concat content_tag(:td, TimelogController.helpers.custom_field_tag(:time_entry, custom_field_value), class: "field-value")
       # Delete button
-      concat content_tag(:td, link_to('Delete', '#', class: 'delete-custom-field icon-only icon-del', title: 'Delete'), class: "buttons" )
+      concat content_tag(:td, link_to(l(:button_delete), '#', class: 'delete-custom-field icon-only icon-del', title: l(:button_delete)), class: "buttons" )
     end
 
     # Optionally append a wiki toolbar for fields with full text formatting enabled.
@@ -33,7 +33,9 @@ module NonBillableCustomFieldsHelper
 
     all_custom_field_values.select { |el| el.custom_field.id.in?(selected_option_ids) }.map do |cfv|
       val = Setting.plugin_evertimer_redmine_plugin['non_billable_custom_fields'][cfv.custom_field.id.to_s]
-      val.compact_blank! if val.is_a?(Array)
+      # Rails-6.1-only blank compaction is unavailable on Rails 5.2 / Redmine 4.1.1 —
+      # the destructive rejection below is the compatible equivalent (PLUG-02 sweep).
+      val.reject!(&:blank?) if val.is_a?(Array)
       cfv.value = val
       cfv
     end
