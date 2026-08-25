@@ -35,7 +35,12 @@ $(document).ready(() => {
         const row = $(this).closest('tr');
         const optionName = row.find('.field-name').text();
         const optionId = row.data('id');
-        $('#available_custom_fields').append(`<option value="${optionId}">${optionName}</option>`);
+        // Built through DOM APIs, not an HTML string: optionName comes from .text(), i.e.
+        // already-decoded text. Interpolating it back into markup would re-inject a custom
+        // field named e.g. `<img src=x onerror=...>` as live HTML, undoing the escaping
+        // that options_for_select gives the server-rendered dropdown. .val()/.text() keep
+        // both values as data.
+        $('#available_custom_fields').append($('<option>').val(optionId).text(optionName));
         row.remove();
     });
 
