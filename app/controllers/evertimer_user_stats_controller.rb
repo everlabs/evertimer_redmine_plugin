@@ -9,9 +9,12 @@ class EvertimerUserStatsController < ApplicationController
   # -> User.verify_session_token). find_current_user's session branch trusts
   # session[:user_id] on its own, and Redmine's cookie session store keeps cookies
   # cryptographically valid forever, so skipping the check would let a logged-out,
-  # expired or stolen cookie keep authenticating here indefinitely. The callback is a
-  # no-op for the extension anyway: it returns immediately unless session[:user_id] is
-  # set, and API-key requests carry no session.
+  # expired or stolen cookie keep authenticating here indefinitely — it still protects
+  # pure-cookie callers. Contrary to what this comment used to claim, the extension's
+  # host-permission fetches DO carry the accumulated _redmine_session cookie alongside
+  # X-Redmine-API-Key (empirically proven, T-03.1-01 / G-03.1-9), so key/cookie
+  # conflicts are real on this controller; the find_current_user override below is the
+  # enforcement that resolves them in the key's favor.
 
   # Redmine stores start_of_week as 1..7 (monday..sunday), both in Setting.start_of_week
   # and in the :general_first_day_of_week locale key (see application_helper.rb:1634-1638).
@@ -95,6 +98,25 @@ class EvertimerUserStatsController < ApplicationController
   end
 
   private
+
+  # Redmine's find_current_user resolves session[:user_id] first on any non-api-format
+  # request (application_controller.rb:112-113), so a bare /evertimer/user_stats call
+  # carrying both a _redmine_session cookie and an X-Redmine-API-Key header used to be
+  # served the COOKIE's account while the key was ignored — the T-03.1-01 / G-03.1-9
+  # cross-account bleed. The extension's host-permission fetches do carry that cookie,
+  # so a presented key must win. Fail closed: an invalid presented key resolves to nil
+  # (-> anonymous -> require_login answers 401), never silently back to the cookie
+  # account, because that silent fallback IS the bleed. Every other caller class
+  # (cookie-only, keyless, api-format, autologin, HTTP Basic, Switch-User) takes the
+  # bare super and behaves byte-identically to core.
+  def find_current_user
+    if !api_request? && session[:user_id] && Setting.rest_api_enabled? && accept_api_auth? &&
+       (key = api_key_from_request)
+      User.find_by_api_key(key)
+    else
+      super
+    end
+  end
 
   # Exactly the fields the extension stores for the signed-in user, under Redmine's
   # own names (users/show.api.rsb:2-12). The API credential is deliberately absent:
