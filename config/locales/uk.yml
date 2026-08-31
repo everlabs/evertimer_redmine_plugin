@@ -1,6 +1,6 @@
 uk:
   non_billable_time: "Неоплачуваний час"
   non_billable_time_explanation: "Внесення часу до завдань з вказаним Трекером або Статусом питання, або внесення часу з вказаною Дією чи настроюваним полем, буде вважатися неоплачуваним у розширенні Chrome EverTimer."
-  text_time_entries_destroy_confirmation: "Ви впевнені, що бажаєте видалити Поле клієнта з конфігурації неоплачуваного часу?"
+  non_billable_custom_field_destroy_confirmation: "Ви впевнені, що бажаєте видалити Поле клієнта з конфігурації неоплачуваного часу?"
   label_select_custom_field: "Виберіть настроюване поле"
   label_custom_field_value: "Значення"

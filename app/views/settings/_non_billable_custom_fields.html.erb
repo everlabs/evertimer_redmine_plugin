@@ -1,7 +1,7 @@
 <%# Include necessary calendar headers for date-type custom fields %>
 <% include_calendar_headers_tags %>
 <% content_for :header_tags do %>
-  <meta name="custom-field-delete-confirmation" content="<%= l(:text_time_entries_destroy_confirmation) %>" />
+  <meta name="custom-field-delete-confirmation" content="<%= l(:non_billable_custom_field_destroy_confirmation) %>" />
   <%= javascript_include_tag :custom_fields, plugin: :evertimer_redmine_plugin %>
 <% end %>
 
