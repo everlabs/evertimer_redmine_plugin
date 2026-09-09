@@ -190,7 +190,7 @@ class EvertimerUserStatsController < ApplicationController
         )
         .first
 
-    settings_stamp = Setting.find_by(name: 'plugin_evertimer_redmine_plugin')&.updated_on || 'unsaved'
+    settings_stamp = Setting.find_by(name: 'plugin_evertimer_redmine_plugin')&.updated_on&.iso8601(6) || 'unsaved'
 
     [
       User.current.id,
