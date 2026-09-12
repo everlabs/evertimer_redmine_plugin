@@ -187,9 +187,9 @@ class EvertimerUserStatsController < ApplicationController
         .where(user_id: User.current.id, spent_on: scan_from..scan_to)
         .joins("LEFT OUTER JOIN #{issues_table} ON #{issues_table}.id = #{entries_table}.issue_id")
         .pluck(
-          Arel.sql(
-            "MAX(#{entries_table}.updated_on), COUNT(*), MAX(#{issues_table}.updated_on)"
-          )
+          Arel.sql("MAX(#{entries_table}.updated_on)"),
+          Arel.sql('COUNT(*)'),
+          Arel.sql("MAX(#{issues_table}.updated_on)")
         )
         .first
 
