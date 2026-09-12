@@ -48,7 +48,7 @@ The `NAME=` argument scopes the run to this plugin only, so other installed plug
 
 ### Uninstalling / rolling back
 
-1. Roll the plugin's migrations back from the Redmine root — this drops the index the plugin added and leaves no plugin rows behind in `schema_migrations`:
+1. Roll the plugin's migrations back from the Redmine root — this drops the plugin's `time_entries (user_id, spent_on)` index and leaves no plugin rows behind in `schema_migrations`:
 ```bash
 bundle exec rake redmine:plugins:migrate NAME=evertimer_redmine_plugin VERSION=0 RAILS_ENV=production
 ```
@@ -56,6 +56,8 @@ bundle exec rake redmine:plugins:migrate NAME=evertimer_redmine_plugin VERSION=0
 3. Restart Redmine.
 
 Run step 1 **before** removing the directory: the rake task needs the plugin's own migration files to know how to reverse them.
+
+Note on pre-existing indexes: the migrations check for indexes by column, not by who created them. If `time_entries` already had a single-column `spent_on` index before you installed (stock Redmine has none), the install replaces it with the composite `(user_id, spent_on)` index, and `VERSION=0` removes it and does not put it back. The same goes for a composite `(user_id, spent_on)` index that already existed. If you had created one of these yourself, re-create it after uninstalling (for example `add_index :time_entries, :spent_on`).
 
 API
 ---
