@@ -5,10 +5,12 @@ Extends the Capabilities of the EverTimer Chrome Extension
 Compatibility
 -------------
 
-Tested on Redmine 5.0.5; 4.1.1 compatibility maintained at API level.
+Tested on Redmine 7.0.1, 6.1.1 and 5.0.5; 4.1.1 compatibility maintained at API level.
 
 | Redmine | Ruby | Rails | Status |
 |---------|------|-------|--------|
+| v7.0.1 | v4.0.6 | v8.1.3.1 | **Tested** — plugin registered, both migrations forward and back, both endpoints, settings screen, and the extension exercised end-to-end against a restored production-shaped copy |
+| v6.1.1 | v3.4.9 | v7.2.3 | **Tested** — same subset, same result |
 | v5.0.5 | v3.1.3 | v6.1.7.2 | **Tested** — installed, migrated and exercised end-to-end on a clean instance |
 | v4.1.1 | v2.6.6 | v5.2.4.2 | **API-level compatibility** — the plugin source is kept free of APIs introduced after Rails 5.2 / Ruby 2.6, verified by a static sweep of every Ruby file in `app/`, `db/`, `config/` and `init.rb`. No live 4.1.1 build was tested. |
 
