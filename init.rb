@@ -8,6 +8,7 @@ Redmine::Plugin.register :evertimer_redmine_plugin do
   version '1.0.0'
   url 'https://github.com/everlabs/evertimer_redmine_plugin'
   author_url 'https://everlabs.com'
+  requires_redmine version_or_higher: '4.1.1'
 
   settings default: {
     'non_billable_projects' => [],
