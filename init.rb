@@ -10,10 +10,10 @@ Redmine::Plugin.register :evertimer_redmine_plugin do
   author_url 'https://everlabs.com'
 
   settings default: {
-    non_billable_projects: [],
-    non_billable_trackers: [],
-    non_billable_issue_statuses: [],
-    non_billable_time_entry_activities: [],
-    non_billable_custom_fields: {}
+    'non_billable_projects' => [],
+    'non_billable_trackers' => [],
+    'non_billable_issue_statuses' => [],
+    'non_billable_time_entry_activities' => [],
+    'non_billable_custom_fields' => {}
   }, partial: 'settings/settings'
 end
