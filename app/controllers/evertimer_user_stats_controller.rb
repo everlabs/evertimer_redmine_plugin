@@ -106,9 +106,12 @@ class EvertimerUserStatsController < ApplicationController
   # cross-account bleed. The extension's host-permission fetches do carry that cookie,
   # so a presented key must win. Fail closed: an invalid presented key resolves to nil
   # (-> anonymous -> require_login answers 401), never silently back to the cookie
-  # account, because that silent fallback IS the bleed. Every other caller class
-  # (cookie-only, keyless, api-format, autologin, HTTP Basic, Switch-User) takes the
-  # bare super and behaves byte-identically to core.
+  # account, because that silent fallback IS the bleed. Every caller that does not
+  # present both a session cookie and a key (cookie-only, keyless, api-format,
+  # autologin, HTTP Basic, and Switch-User without a cookie) takes the bare super and
+  # behaves exactly as core. The key-over-cookie branch intentionally skips core's
+  # X-Redmine-Switch-User handling (an admin's switch header is ignored there, so they
+  # get their own stats) and does not assign User#remote_ip.
   def find_current_user
     if !api_request? && session[:user_id] && Setting.rest_api_enabled? && accept_api_auth? &&
        (key = api_key_from_request)
