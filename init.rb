@@ -1,4 +1,5 @@
-include NonBillableCustomFieldsHelper
+# The settings partial is rendered by core SettingsController#plugin and core sets include_all_helpers = false, so scope the helper there, not on Object.
+SettingsController.helper NonBillableCustomFieldsHelper
 
 Redmine::Plugin.register :evertimer_redmine_plugin do
   name 'Evertimer plugin'
