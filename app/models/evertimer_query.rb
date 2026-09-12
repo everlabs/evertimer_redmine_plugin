@@ -1,7 +1,7 @@
 class EvertimerQuery < Query
   def initialize(attributes=nil, *args)
     self.queried_class = attributes&.dig(:queried_class)
-    super attributes
+    super(attributes&.except(:queried_class))
   end
 
   def available_columns
