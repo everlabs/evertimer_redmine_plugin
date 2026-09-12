@@ -51,7 +51,7 @@ class EvertimerUserStatsController < ApplicationController
     # has to ride on the ETag instead: a profile edit moves User#updated_on and
     # busts only the include=user ETag. The literal marker keeps the two variants
     # of the same stats from ever colliding on one ETag value.
-    etag_basis = with_user ? key_basis + [User.current.updated_on, 'user'] : key_basis
+    etag_basis = with_user ? key_basis + [User.current.updated_on&.iso8601(6), 'user'] : key_basis
 
     # fresh_when (inside stale?) answers 304 with an empty body itself, before any
     # fragment lookup or stats SQL runs (actionpack conditional_get.rb:121).
@@ -194,6 +194,11 @@ class EvertimerUserStatsController < ApplicationController
         .first
 
     settings_stamp = Setting.find_by(name: 'plugin_evertimer_redmine_plugin')&.updated_on&.iso8601(6) || 'unsaved'
+
+    # Microsecond stamps, like settings_stamp. The guard keeps nil (no entries) as nil and
+    # passes through the raw String the SQLite adapter returns for MAX() without type casting.
+    max_updated_on = max_updated_on.iso8601(6) if max_updated_on.respond_to?(:iso8601)
+    max_issue_updated_on = max_issue_updated_on.iso8601(6) if max_issue_updated_on.respond_to?(:iso8601)
 
     [
       User.current.id,
