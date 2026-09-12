@@ -13,8 +13,9 @@ $(document).ready(() => {
 
         if (!selectedFieldId) return;
 
-        const templateContent = $('#template_' + selectedFieldId)[0].outerHTML;
-        $('#customFieldsTable tbody').append(templateContent);
+        const tpl = $('#template_' + selectedFieldId);
+        if (!tpl.length) return;
+        $('#customFieldsTable tbody').append(tpl.first().clone());
         $(this).find(':selected').remove(); // Remove the selected option from the dropdown to prevent duplicate selections.
         $(this).val(''); // Reset dropdown
     });
