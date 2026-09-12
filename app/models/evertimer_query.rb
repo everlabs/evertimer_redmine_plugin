@@ -37,6 +37,10 @@ class EvertimerQuery < Query
     return [] unless queried_class
 
     items = queried_class.select(:id, :name)
+    # Hide archived projects, but keep any already selected so saved config is never dropped.
+    if queried_class == Project
+      items = items.where.not(status: Project::STATUS_ARCHIVED).or(items.where(id: Array(column_names)))
+    end
     have_position = false
 
     if items.take.respond_to?(:position)
