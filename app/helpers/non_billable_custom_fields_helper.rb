@@ -8,7 +8,16 @@ module NonBillableCustomFieldsHelper
   # @param is_template [Boolean] Flag to indicate if the row should be rendered for a template.
   #                              Templates are used for dynamically adding new fields via JavaScript.
   def render_custom_field_row(custom_field_value, is_template: false)
-    result = content_tag(:tr, id: "template_#{custom_field_value.custom_field_id}", data: { id: custom_field_value.custom_field_id }) do
+    field_id = "time_entry_custom_field_values_#{custom_field_value.custom_field_id}"
+    row_data = { id: custom_field_value.custom_field_id }
+    # A template row cannot run the toolbar script here: it is hidden, and its clone is what gets the
+    # toolbar. It carries wikitoolbar_for's own output instead, which custom_fields.js runs once the row
+    # is cloned into the table. This also loads the jstoolbar assets when no selected row did (PLUG-38).
+    if custom_field_value.custom_field.full_text_formatting? && is_template
+      row_data[:wikitoolbar] = wikitoolbar_for(field_id)
+    end
+
+    result = content_tag(:tr, id: "template_#{custom_field_value.custom_field_id}", data: row_data) do
       # Custom field label
       concat content_tag(:td, TimelogController.helpers.custom_field_label_tag(:time_entry, custom_field_value), class: "field-name")
       # Custom field input
