@@ -2,9 +2,15 @@ Contributing to EverTimer Redmine plugin
 ========================================
 Welcome to EverTimer Redmine plugin! We're thrilled that you're interested in contributing. Before you get started, please take a moment to review the following guidelines.
 
+By participating in this project, you agree to follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 Community and Support
 ---------------------
 [Join the discussion!](https://github.com/everlabs/evertimer_redmine_plugin/discussions) If you have questions, suggestions, or want to discuss ideas with fellow contributors and maintainers, head over to the [Discussions section](https://github.com/everlabs/evertimer_redmine_plugin/discussions). This is a great place to get involved in the community, seek advice, or just share your experiences with the project.
+
+Reporting a Security Vulnerability
+-----------------------------------
+Found a security issue? Please don't open a public issue — see [SECURITY.md](SECURITY.md) for how to report it privately.
 
 Reporting Bugs
 --------------
@@ -75,6 +81,29 @@ bundle exec rspec
 ```
 
 6. If you encounter any issues or have questions, don't hesitate to reach out to the community or project maintainers for assistance.
+
+---
+
+Releasing
+---------
+This section is for maintainers cutting a release.
+
+1. **Bump the version** in `init.rb` (`version '...'`).
+2. **Update the changelog:** move the relevant entries out of `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) into a new `## [X.Y.Z]` section, dated.
+3. **Squash-merge** the release branch into `main`.
+4. **Tag the `main` commit** with an annotated tag — signed, if you can (`git tag -s vX.Y.Z -m "..."`; use `-a` instead of `-s` if signing isn't set up). Never move a tag that's already been pushed — if a tag is wrong, delete it, retag, and say so in the release notes.
+5. **Push the tag:** `git push origin vX.Y.Z`.
+6. **Create the GitHub release:**
+   ```bash
+   gh release create vX.Y.Z --verify-tag --notes-file <path-to-notes.md>
+   ```
+   Add `--prerelease` for a `-rc.N` build.
+7. **Attach a source archive and its checksum:**
+   ```bash
+   shasum -a 256 evertimer_redmine_plugin-X.Y.Z.zip > evertimer_redmine_plugin-X.Y.Z.zip.sha256
+   gh release upload vX.Y.Z evertimer_redmine_plugin-X.Y.Z.zip evertimer_redmine_plugin-X.Y.Z.zip.sha256
+   ```
+8. **Mark "latest" only for stable releases** — a `-rc.N` pre-release should never be the "latest" release GitHub shows by default (`--prerelease` handles this for `gh release create`; double-check on the release page).
 
 ---
 

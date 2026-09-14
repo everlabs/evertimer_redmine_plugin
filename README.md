@@ -1,5 +1,11 @@
 EverTimer Redmine plugin
 ========================
+
+[![Latest release](https://img.shields.io/github/v/release/everlabs/evertimer_redmine_plugin?include_prereleases&sort=semver&label=release)](https://github.com/everlabs/evertimer_redmine_plugin/releases)
+[![License: GPL-2.0](https://img.shields.io/badge/license-GPL--2.0-blue.svg)](LICENSE)
+[![Redmine](https://img.shields.io/badge/Redmine-5.0%20%7C%206.1%20%7C%207.0-blue)](#compatibility)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Evertimer-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/evertimer/kjbdlnkafjlgnbmbeihkampliednpmgk)
+
 Extends the Capabilities of the EverTimer Chrome Extension
 
 Compatibility
@@ -22,6 +28,8 @@ This plugin extends the capabilities of the [EverTimer](https://chromewebstore.g
 1. **User Statistics** (`GET /evertimer/user_stats`): the sum of TimeEntry hours for today, this week and this month for the requesting user, together with the billable portion of each. Non-billable time is classified through the plugin's own settings screen (non-billable projects, trackers, issue statuses, time-tracking activities and custom-field values). Optionally returns the requesting user's identity with `?include=user`.
 
 2. **Custom Fields** (`GET /evertimer/custom_fields.json`): the `TimeEntryCustomField` records visible to the requesting user, narrowed to the twelve attributes EverTimer actually needs to render a custom-field input. This addresses limitations with the core Redmine API endpoint `/custom_fields.json`, which requires admin privileges and returns comprehensive details unnecessary for [EverTimer](https://chromewebstore.google.com/detail/evertimer/kjbdlnkafjlgnbmbeihkampliednpmgk).
+
+<!-- TODO: screenshots (stats circles, plugin settings) from the final rc, with names neutralised -->
 
 Before you start
 ----------------
@@ -287,7 +295,12 @@ We value your feedback and contributions! Feel free to submit issues, enhancemen
 Contributing
 ------------
 
-We welcome contributions! Please review our [contributing guidelines](CONTRIBUTING.md) before submitting pull requests or issues. Ensure you merge the latest changes from "upstream" before making a pull request.
+We welcome contributions! Please review our [contributing guidelines](CONTRIBUTING.md) before submitting pull requests or issues. Ensure you merge the latest changes from "upstream" before making a pull request. Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Security
+--------
+
+Found a security issue? Please don't open a public issue — see [SECURITY.md](SECURITY.md) for how to report it privately.
 
 Copyright and Licensing
 -----------------------
@@ -320,3 +333,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
 ```
+
+Star History
+------------
+
+[![Star History Chart](https://api.star-history.com/svg?repos=everlabs/EverTimer-Redmine-plugin&type=Date)](https://star-history.com/#everlabs/EverTimer-Redmine-plugin&Date)
