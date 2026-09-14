@@ -23,30 +23,92 @@ This plugin extends the capabilities of the [EverTimer](https://chromewebstore.g
 
 2. **Custom Fields** (`GET /evertimer/custom_fields.json`): the `TimeEntryCustomField` records visible to the requesting user, narrowed to the twelve attributes EverTimer actually needs to render a custom-field input. This addresses limitations with the core Redmine API endpoint `/custom_fields.json`, which requires admin privileges and returns comprehensive details unnecessary for [EverTimer](https://chromewebstore.google.com/detail/evertimer/kjbdlnkafjlgnbmbeihkampliednpmgk).
 
-Configuration
--------------
+Before you start
+----------------
 
-The plugin requires `Enable REST web service` to be enabled in your Redmine Settings. To do so go to **Settings** > **API** and ensure that the **Enable REST web service** option is checked. You can find it at `https://your-redmine-domain/settings?tab=api`
+- **Check compatibility** in the table above. Redmine 7.0.1, 6.1.1 and 5.0.5 are tested; 4.1.1 is compatible at the API level only.
+- **Enable the REST API.** The plugin requires `Enable REST web service` to be enabled in your Redmine Settings. To do so go to **Settings** > **API** and ensure that the **Enable REST web service** option is checked. You can find it at `https://your-redmine-domain/settings?tab=api`
 ![Enable REST web service](images/configure_redmine.png?raw=true)
-
-Non-billable classification is configured per Redmine instance under **Administration** > **Plugins** > **Evertimer Redmine plugin** > **Configure**.
+- **No extra gems.** The plugin ships no `Gemfile`, so there is no `bundle install` step of its own.
+- **Back up your database** before any migration: install, upgrade or rollback. See [Redmine backups](https://www.redmine.org/projects/redmine/wiki/RedmineBackupAndRestore).
 
 Installation
 ------------
 
-1. Copy your plugin directory into `#{RAILS_ROOT}/plugins`. If you are downloading the plugin directly from GitHub, you can do so by navigating to your plugin directory and using the following command:
+1. Clone the plugin into Redmine's `plugins` directory:
 ```bash
+cd /path/to/redmine/plugins
 git clone https://github.com/everlabs/evertimer_redmine_plugin.git
 ```
 The plugin directory must be named `evertimer_redmine_plugin` — Redmine derives both the plugin identifier and the mirrored asset path (`public/plugin_assets/evertimer_redmine_plugin`) from the directory name.
 
-2. After copying the plugin into the appropriate directory, run its migrations from the Redmine root:
+2. Run the plugin's migrations from the Redmine root:
 ```bash
 bundle exec rake redmine:plugins:migrate NAME=evertimer_redmine_plugin RAILS_ENV=production
 ```
-The `NAME=` argument scopes the run to this plugin only, so other installed plugins are left alone.
+The `NAME=` argument scopes the run to this plugin only, so other installed plugins are left alone. The migrations add a `time_entries (user_id, spent_on)` index used by the statistics endpoint.
 
-3. Restart Redmine to apply the changes.
+3. Restart Redmine the way your deployment runs it:
+   - Passenger: `touch tmp/restart.txt` in the Redmine root
+   - systemd / Puma: `sudo systemctl restart <your-redmine-service>`
+   - Docker: `docker restart <container>`
+
+   Redmine mirrors the plugin's assets (`assets/javascripts`, `assets/stylesheets`, used by the settings screen) when it starts. On Redmine 6.0+ in production, if the plugin settings screen opens without its styles or scripts, run `bundle exec rake assets:precompile RAILS_ENV=production` and restart again.
+
+4. Verify the installation:
+   - **Administration** > **Plugins** lists **Evertimer plugin** 1.0.0.
+   - The statistics endpoint answers with your API key:
+```bash
+curl -i -H "X-Redmine-API-Key: your_api_key" -H "Accept: application/json" \
+  https://your-redmine-domain/evertimer/user_stats
+```
+   `200` with a JSON body means the plugin works. See **Troubleshooting** below for anything else.
+
+### Docker (official `redmine` image)
+
+Mount the plugin at `/usr/src/redmine/plugins/evertimer_redmine_plugin`:
+
+```yaml
+services:
+  redmine:
+    image: redmine:6.1
+    volumes:
+      - ./plugins/evertimer_redmine_plugin:/usr/src/redmine/plugins/evertimer_redmine_plugin
+    environment:
+      REDMINE_PLUGINS_MIGRATE: "1"
+```
+
+With `REDMINE_PLUGINS_MIGRATE` set, the image's entrypoint runs the plugin migrations when the container starts (only with the image's default command). Without it, migrate inside the running container and restart it:
+
+```bash
+docker exec -it <container> bundle exec rake redmine:plugins:migrate NAME=evertimer_redmine_plugin RAILS_ENV=production
+docker restart <container>
+```
+
+Configuration
+-------------
+
+### Non-billable time
+
+Non-billable classification is configured per Redmine instance under **Administration** > **Plugins** > **Evertimer Redmine plugin** > **Configure**. You can mark projects, trackers, issue statuses, time-tracking activities and custom-field values as non-billable. Until the settings are saved, all time counts as billable.
+
+### The EverTimer extension
+
+Each user connects the extension to Redmine once:
+
+1. In Redmine, open **My account** (`https://your-redmine-domain/my/account`) and copy the **API access key** (click **Show** in the sidebar).
+2. Open the [EverTimer](https://chromewebstore.google.com/detail/evertimer/kjbdlnkafjlgnbmbeihkampliednpmgk) extension. On first run it opens **Settings**. Enter the Redmine domain and the API key, then save.
+3. The statistics circles (today, week, month, billable split) appear once the plugin responds.
+
+The extension also works without the plugin. Tracking and submitting time are unaffected; the statistics panel shows "Install the plugin on your Redmine to unlock statistics" instead of figures.
+
+Upgrading
+---------
+
+1. Back up your database.
+2. Update the plugin directory, keeping its name `evertimer_redmine_plugin` (for example `git pull` inside it).
+3. Run the migration command from **Installation**, step 2. Migrations that are already applied are skipped.
+4. Restart Redmine (**Installation**, step 3).
 
 ### Uninstalling / rolling back
 
@@ -60,6 +122,19 @@ bundle exec rake redmine:plugins:migrate NAME=evertimer_redmine_plugin VERSION=0
 Run step 1 **before** removing the directory: the rake task needs the plugin's own migration files to know how to reverse them.
 
 Note on pre-existing indexes: the migrations check for indexes by column, not by who created them. If `time_entries` already had a single-column `spent_on` index before you installed (stock Redmine has none), the install replaces it with the composite `(user_id, spent_on)` index, and `VERSION=0` removes it and does not put it back. The same goes for a composite `(user_id, spent_on)` index that already existed. If you had created one of these yourself, re-create it after uninstalling (for example `add_index :time_entries, :spent_on`).
+
+Troubleshooting
+---------------
+
+| Symptom | Likely cause | What to do |
+|---------|--------------|------------|
+| Plugin not listed under **Administration** > **Plugins** | Redmine was not restarted, or the directory is not named `evertimer_redmine_plugin` | Rename the directory if needed and restart Redmine |
+| `401` or `403` with an empty body from `/evertimer/user_stats` | **Enable REST web service** is off, or the API key is wrong | Enable it under **Settings** > **API**; re-copy the key from **My account** |
+| `302` redirect to the login page | The request did not ask for JSON | Send `Accept: application/json` or use the `.json` suffix |
+| `404` from `/evertimer/user_stats` | The plugin is not loaded | Check the plugin list and restart Redmine |
+| `VERSION=0` rollback fails | The plugin directory was removed first | Put the directory back, roll back, then remove it |
+| Extension shows "Install the plugin on your Redmine to unlock statistics" | Plugin not installed or not reachable, or the extension points at another Redmine | Run the `curl` check above against the domain entered in the extension |
+| Settings screen shows unstyled lists or the custom-field picker does nothing | Plugin assets not mirrored or compiled | Restart Redmine; on 6.0+ in production also run `assets:precompile` |
 
 API
 ---
