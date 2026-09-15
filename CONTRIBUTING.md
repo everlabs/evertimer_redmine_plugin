@@ -39,7 +39,7 @@ If you're new to contributing to open source or our project, here's a quick guid
 1. **Fork the Repository**: Navigate to the repository on GitHub and click the "Fork" button in the top right corner. This creates a copy of the project in your GitHub account.
 2. **Clone Your Fork**: Clone the forked repository to your local machine with the command
    ```bash
-   git clone https://github.com/everlabs/evertimer_redmine_plugin.git
+   git clone https://github.com/<your-username>/evertimer_redmine_plugin.git
    ```
 3. **Create a New Branch**: Before making changes, switch to a new branch using `git checkout -b your-branch-name`.
 4. **Make Your Changes**: Implement your feature, fix a bug, or make other changes as you've planned.
@@ -84,7 +84,7 @@ curl -i -H "X-Redmine-API-Key: your_api_key" -H "Accept: application/json" \
 Confirm each returns `200` with a JSON body that reflects your change, and that a missing/invalid key
 gets a `401`.
 
-4. Open the plugin's settings screen (**Administration** > **Plugins** > **Evertimer Redmine plugin** >
+4. Open the plugin's settings screen (**Administration** > **Plugins** > **Evertimer plugin** >
    **Configure**) and confirm it still loads and saves correctly.
 
 5. If you encounter any issues or have questions, don't hesitate to reach out to the community or

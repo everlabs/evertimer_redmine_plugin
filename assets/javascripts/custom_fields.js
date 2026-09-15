@@ -38,7 +38,8 @@ $(document).ready(() => {
         if (!confirm(confirmationMessage)) return;
 
         const row = $(this).closest('tr');
-        const optionName = row.find('.field-name').text();
+        // The label's first span is the name; a required field also carries a " *" span.
+        const optionName = row.find('.field-name label > span').first().text();
         const optionId = row.data('id');
         // DOM APIs, not an HTML string: optionName is decoded text and must not be parsed as markup.
         $('#available_custom_fields').append($('<option>').val(optionId).text(optionName));

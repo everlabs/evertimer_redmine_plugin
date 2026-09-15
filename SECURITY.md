@@ -9,7 +9,7 @@ Supported Versions
 | 1.0.x   | ✅ |
 | < 1.0   | ❌ |
 
-Only the latest `1.0.x` release receives security fixes. Earlier, untagged `0.0.1` builds (only ever available from the `feat/user-stats` branch) are not supported — please upgrade before reporting an issue against one of them.
+Only the latest `1.0.x` release receives security fixes. Untagged `0.0.1` builds are not supported — please upgrade before reporting an issue against one of them.
 
 Reporting a Vulnerability
 --------------------------
@@ -33,4 +33,4 @@ This is a small, maintainer-run project, so we can't promise a fixed response ti
 Scope
 -----
 
-The plugin authenticates every request through **Redmine's own standard API-key auth** (`X-Redmine-API-Key`); it does not implement its own authentication, key storage or key rotation. Vulnerabilities in Redmine's core API-key handling itself belong to [Redmine](https://www.redmine.org/projects/redmine/wiki/Security), not this plugin — please report those upstream. This policy covers the plugin's own code: its two endpoints, its settings screen, and its migrations.
+The plugin relies on **Redmine's own authentication** (`X-Redmine-API-Key` or a logged-in session) and does not store or rotate keys. Its only authentication logic of its own is that, on its endpoints, a presented API key takes precedence over a session cookie. Vulnerabilities in Redmine's core authentication belong to [Redmine](https://www.redmine.org/projects/redmine/wiki/Security), not this plugin — please report those upstream. This policy covers the plugin's own code: its two endpoints (including that key-over-session rule), its settings screen, and its migrations.

@@ -7,14 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0-rc.1] - 2026-09-14
+## [1.0.0] - Unreleased
 
-First tagged release. Everything below is relative to the `0.0.1` baseline (see below) — the last state of the plugin before the `feat/user-stats` branch's 2025-2026 work.
+First tagged release. Changes below are relative to the untagged `0.0.1` baseline.
 
 ### Added
 
 - `GET /evertimer/custom_fields.json` — a new endpoint returning the `TimeEntryCustomField` records visible to the requesting user, narrowed to a fixed 12-attribute whitelist per field.
-- A settings screen (**Administration** > **Plugins** > **Evertimer Redmine plugin** > **Configure**) to mark projects, trackers, issue statuses, time-tracking activities and custom-field values as non-billable, replacing the old hardcoded lookup for a custom field or activity literally named "Non-Billable"/"Non-billable".
+- A settings screen (**Administration** > **Plugins** > **Evertimer plugin** > **Configure**) to mark projects, trackers, issue statuses, time-tracking activities and custom-field values as non-billable, replacing the old hardcoded lookup for a custom field or activity literally named "Non-Billable"/"Non-billable". A non-billable activity also covers its project-level overrides.
 - `GET /evertimer/user_stats?include=user` — the stats payload can now include the requesting user's identity (`id`, `firstname`, `lastname`, `avatar_url`) in one round trip, so a client does not need a second request.
 - Conditional requests for `GET /evertimer/user_stats`: a weak `ETag` and `304 Not Modified` support, so unchanged stats can be served without re-querying.
 - A composite `time_entries (user_id, spent_on)` database index to speed up the statistics query (migration `002`, replacing the single-column `spent_on` index added by migration `001` in the `0.0.1` baseline).
@@ -37,8 +37,8 @@ First tagged release. Everything below is relative to the `0.0.1` baseline (see 
 
 ### Security
 
-- Both endpoints now require a valid Redmine API key. A missing or invalid key returns `401 Unauthorized`; the `0.0.1` baseline had no such check, so a Redmine instance running in public mode could return a `200` response with zero hours to an anonymous caller.
-- Redmine's session-expiration check is enforced on both endpoints. (The `0.0.1` baseline's single endpoint already skipped it too; a later, unreleased iteration of this branch skipped it more broadly before this release restored the check.)
+- Both endpoints now require an authenticated user (a Redmine API key or a logged-in session). API requests without valid credentials get `401 Unauthorized`; the `0.0.1` baseline had no such check, so a Redmine instance running in public mode could return a `200` response with zero hours to an anonymous caller.
+- Redmine's session-expiration check is enforced on both endpoints (the `0.0.1` baseline skipped it).
 - When a request carries both a browser session and an API key, the API key now decides the user.
 
 ### License change
@@ -47,7 +47,7 @@ As of this release the plugin is licensed under **GPLv2** instead of Apache Lice
 
 ## [0.0.1] - 2024-03-27
 
-The previous plugin baseline, per the last 2024 commit (`2b1651e`) on this branch. **Never tagged** — only ever available by checking out `feat/user-stats` at that commit, and reported as version `0.0.1` in Redmine's plugin list. (The Evertimer extension's 1.0.1.5 line shipped against an early plugin endpoint that predates this repository's commit history in a form that can be independently verified; this commit is the closest and last dated 2024 reference point.)
+The untagged baseline at commit `2b1651e`, shown as version `0.0.1` in Redmine's plugin list.
 
 ### Added
 
@@ -55,8 +55,6 @@ The previous plugin baseline, per the last 2024 commit (`2b1651e`) on this branc
 - A billable/non-billable split on that same endpoint, but only when a `TimeEntryCustomField` happened to be named exactly "Non-Billable" or a `TimeEntryActivity` happened to be named exactly "Non-billable" — there was no settings screen.
 - A single-column `time_entries.spent_on` database index (migration `001`).
 
-There was no `custom_fields.json` endpoint, no settings screen, and no `ETag`/conditional-request support at this point — all three were added later, in `1.0.0-rc.1`.
-
-[Unreleased]: https://github.com/everlabs/evertimer_redmine_plugin/compare/v1.0.0-rc.1...HEAD
-[1.0.0-rc.1]: https://github.com/everlabs/evertimer_redmine_plugin/compare/2b1651e...v1.0.0-rc.1
+[Unreleased]: https://github.com/everlabs/evertimer_redmine_plugin/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/everlabs/evertimer_redmine_plugin/compare/2b1651e...v1.0.0
 [0.0.1]: https://github.com/everlabs/evertimer_redmine_plugin/commit/2b1651e

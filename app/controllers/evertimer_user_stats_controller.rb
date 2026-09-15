@@ -36,7 +36,7 @@ class EvertimerUserStatsController < ApplicationController
 
     # The user payload isn't cached, so profile edits must change the ETag instead.
     # The 'user' marker keeps the two variants' ETags distinct.
-    etag_basis = with_user ? key_basis + [User.current.updated_on&.iso8601(6), 'user'] : key_basis
+    etag_basis = with_user ? key_basis + user_etag_basis : key_basis
 
     return unless stale?(etag: etag_basis)
 
@@ -75,6 +75,18 @@ class EvertimerUserStatsController < ApplicationController
     end
   end
 
+  # Email lives in its own table, so a mail change doesn't touch users.updated_on.
+  def user_etag_basis
+    user = User.current
+    [
+      user.updated_on&.iso8601(6),
+      user.email_address&.updated_on&.iso8601(6),
+      Setting.gravatar_enabled?,
+      Setting.gravatar_default,
+      'user'
+    ]
+  end
+
   # Deliberately excludes the API key and email.
   def user_payload
     user = User.current
@@ -107,21 +119,23 @@ class EvertimerUserStatsController < ApplicationController
     }
   end
 
-  # Cache key and ETag basis. MAX/COUNT over time entries catch edits and deletions;
+  # Cache key and ETag basis. MAX/COUNT/SUM over time entries catch edits and deletions
+  # (SUM covers same-second edits where timestamps have 1s resolution);
   # MAX(issues.updated_on) catches tracker/status changes that move the billable split.
   # Custom-value-only edits aren't detected (no timestamp), which expires_in bounds.
   def stats_key_basis(ranges, scan_from, scan_to)
     entries_table = TimeEntry.table_name
     issues_table  = Issue.table_name
 
-    max_updated_on, entries_count, max_issue_updated_on =
+    max_updated_on, entries_count, max_issue_updated_on, hours_sum =
       TimeEntry
         .where(user_id: User.current.id, spent_on: scan_from..scan_to)
         .joins("LEFT OUTER JOIN #{issues_table} ON #{issues_table}.id = #{entries_table}.issue_id")
         .pluck(
           Arel.sql("MAX(#{entries_table}.updated_on)"),
           Arel.sql('COUNT(*)'),
-          Arel.sql("MAX(#{issues_table}.updated_on)")
+          Arel.sql("MAX(#{issues_table}.updated_on)"),
+          Arel.sql("SUM(#{entries_table}.hours)")
         )
         .first
 
@@ -141,7 +155,8 @@ class EvertimerUserStatsController < ApplicationController
       max_updated_on,
       entries_count,
       settings_stamp,
-      max_issue_updated_on
+      max_issue_updated_on,
+      hours_sum.to_f
     ]
   end
 
@@ -209,7 +224,11 @@ class EvertimerUserStatsController < ApplicationController
 
     activity_ids = non_billable_ids(settings['non_billable_time_entry_activities'])
     if activity_ids.any?
-      criteria << TimeEntry.sanitize_sql_array(["#{table}.activity_id IN (?)", activity_ids])
+      # A project-level activity override is a child enumeration, and core moves the project's entries onto it.
+      criteria << TimeEntry.sanitize_sql_array(
+        ["(#{table}.activity_id IN (?) OR EXISTS (SELECT 1 FROM #{Enumeration.table_name} nb_activities " \
+         "WHERE nb_activities.id = #{table}.activity_id AND nb_activities.parent_id IN (?)))", activity_ids, activity_ids]
+      )
     end
 
     tracker_ids = non_billable_ids(settings['non_billable_trackers'])

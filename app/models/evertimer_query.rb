@@ -31,15 +31,23 @@ class EvertimerQuery < Query
     @queried_table_name ||= queried_class.table_name
   end
 
+  # Only drives the settings screen; QueriesController would otherwise accept it as a saveable query type.
+  def readonly?
+    true
+  end
+
   private
 
   def dynamic_columns_for_queried_class
     return [] unless queried_class
 
     items = queried_class.select(:id, :name)
-    # Hide archived projects, but keep any already selected so saved config is never dropped.
+    # Keep already selected items so saved config is never dropped.
     if queried_class == Project
       items = items.where.not(status: Project::STATUS_ARCHIVED).or(items.where(id: Array(column_names)))
+    elsif queried_class == TimeEntryActivity
+      # Project-level overrides are matched through their system activity.
+      items = items.where(project_id: nil).or(items.where(id: Array(column_names)))
     end
     have_position = false
 
