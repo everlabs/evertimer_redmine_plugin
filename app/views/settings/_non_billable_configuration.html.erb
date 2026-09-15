@@ -1,0 +1,33 @@
+<% project_config = EvertimerQuery.new({queried_class: Project, column_names: Setting.plugin_evertimer_redmine_plugin['non_billable_projects']}) %>
+<% tracker_config = EvertimerQuery.new({queried_class: Tracker, column_names: Setting.plugin_evertimer_redmine_plugin['non_billable_trackers']}) %>
+<% issue_status_config = EvertimerQuery.new({queried_class: IssueStatus, column_names: Setting.plugin_evertimer_redmine_plugin['non_billable_issue_statuses']}) %>
+<% time_entry_activity_config = EvertimerQuery.new({queried_class: TimeEntryActivity, column_names: Setting.plugin_evertimer_redmine_plugin['non_billable_time_entry_activities']}) %>
+
+<div class="non-billable-config">
+  <h3><%= l(:non_billable_time) %></h3>
+  <em class="info"><%= l(:non_billable_time_explanation) %></em>
+
+  <div class="fields">
+    <%= field_set_tag l(:label_project) do %>
+      <%= hidden_field_tag('settings[non_billable_projects][]') %>
+      <%= render_query_columns_selection(project_config, name: 'settings[non_billable_projects]') %>
+    <% end %>
+
+    <%= field_set_tag l(:label_tracker) do %>
+      <%= hidden_field_tag('settings[non_billable_trackers][]') %>
+      <%= render_query_columns_selection(tracker_config, name: 'settings[non_billable_trackers]') %>
+    <% end %>
+
+    <%= field_set_tag l(:label_issue_status) do %>
+      <%= hidden_field_tag('settings[non_billable_issue_statuses][]') %>
+      <%= render_query_columns_selection(issue_status_config, name: 'settings[non_billable_issue_statuses]') %>
+    <% end %>
+
+    <%= field_set_tag l(:enumeration_activities) do %>
+      <%= hidden_field_tag('settings[non_billable_time_entry_activities][]') %>
+      <%= render_query_columns_selection(time_entry_activity_config, name: 'settings[non_billable_time_entry_activities]') %>
+    <% end %>
+
+    <%= render 'non_billable_custom_fields' %>
+  </div>
+</div>

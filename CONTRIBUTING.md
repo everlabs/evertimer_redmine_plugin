@@ -2,9 +2,15 @@ Contributing to EverTimer Redmine plugin
 ========================================
 Welcome to EverTimer Redmine plugin! We're thrilled that you're interested in contributing. Before you get started, please take a moment to review the following guidelines.
 
+By participating in this project, you agree to follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 Community and Support
 ---------------------
 [Join the discussion!](https://github.com/everlabs/evertimer_redmine_plugin/discussions) If you have questions, suggestions, or want to discuss ideas with fellow contributors and maintainers, head over to the [Discussions section](https://github.com/everlabs/evertimer_redmine_plugin/discussions). This is a great place to get involved in the community, seek advice, or just share your experiences with the project.
+
+Reporting a Security Vulnerability
+-----------------------------------
+Found a security issue? Please don't open a public issue — see [SECURITY.md](SECURITY.md) for how to report it privately.
 
 Reporting Bugs
 --------------
@@ -33,7 +39,7 @@ If you're new to contributing to open source or our project, here's a quick guid
 1. **Fork the Repository**: Navigate to the repository on GitHub and click the "Fork" button in the top right corner. This creates a copy of the project in your GitHub account.
 2. **Clone Your Fork**: Clone the forked repository to your local machine with the command
    ```bash
-   git clone https://github.com/everlabs/evertimer_redmine_plugin.git
+   git clone https://github.com/<your-username>/evertimer_redmine_plugin.git
    ```
 3. **Create a New Branch**: Before making changes, switch to a new branch using `git checkout -b your-branch-name`.
 4. **Make Your Changes**: Implement your feature, fix a bug, or make other changes as you've planned.
@@ -48,33 +54,64 @@ When submitting a pull request (PR), please use the [following template](.github
 
 By following this template and providing thorough information, you help ensure that your pull request can be reviewed and merged efficiently. If you have any questions or need further assistance, don't hesitate to reach out to the project maintainers.
 
-Running Tests and Setting Up Your Environment
----------------------------------------------
-To set up your development environment for EverTimer Redmine plugin and run tests, follow these steps:
+Testing Your Changes
+--------------------
+This plugin doesn't have an automated test suite yet — `test/` only holds the Redmine-provided
+`test_helper.rb`, and there's no `Gemfile` or `.rspec` here, so `bundle exec rspec` has nothing to run.
+A Redmine-standard test suite (Minitest under `test/`, run with `bin/rails redmine:plugins:test
+NAME=evertimer_redmine_plugin` from the Redmine root) is planned; if you'd like to contribute one, add
+unit/functional tests under `test/unit` and `test/functional` following Redmine's own plugin testing
+conventions.
 
-1. Clone the project repository from GitHub:
+Until then, verify changes manually against a real Redmine instance:
+
+1. Install the plugin per the [README](README.md#installation): clone it into that Redmine's
+   `plugins/` directory, then run its migrations from the Redmine root:
 ```bash
-git clone https://github.com/everlabs/evertimer_redmine_plugin.git
+bundle exec rake redmine:plugins:migrate NAME=evertimer_redmine_plugin RAILS_ENV=production
 ```
 
-2. Navigate to the project directory:
+2. Restart Redmine the way your deployment runs it (see the README's **Installation** step 3), then
+   confirm **Administration** > **Plugins** lists **Evertimer plugin**.
+
+3. Exercise both endpoints with a valid API key:
 ```bash
-cd evertimer_redmine_plugin
+curl -i -H "X-Redmine-API-Key: your_api_key" -H "Accept: application/json" \
+  https://your-redmine-domain/evertimer/user_stats
+curl -i -H "X-Redmine-API-Key: your_api_key" -H "Accept: application/json" \
+  https://your-redmine-domain/evertimer/custom_fields.json
 ```
+Confirm each returns `200` with a JSON body that reflects your change, and that a missing/invalid key
+gets a `401`.
 
-3. Install dependencies:
-```bash
-bundle install
-```
+4. Open the plugin's settings screen (**Administration** > **Plugins** > **Evertimer plugin** >
+   **Configure**) and confirm it still loads and saves correctly.
 
-4. Set up any necessary configuration files or environment variables.
+5. If you encounter any issues or have questions, don't hesitate to reach out to the community or
+   project maintainers for assistance.
 
-5. Run tests to ensure everything is working correctly:
-```bash
-bundle exec rspec
-```
+---
 
-6. If you encounter any issues or have questions, don't hesitate to reach out to the community or project maintainers for assistance.
+Releasing
+---------
+This section is for maintainers cutting a release.
+
+1. **Bump the version** in `init.rb` (`version '...'`).
+2. **Update the changelog:** move the relevant entries out of `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) into a new `## [X.Y.Z]` section, dated.
+3. **Squash-merge** the release branch into `main`.
+4. **Tag the `main` commit** with an annotated tag — signed, if you can (`git tag -s vX.Y.Z -m "..."`; use `-a` instead of `-s` if signing isn't set up). Never move a tag that's already been pushed — if a tag is wrong, delete it, retag, and say so in the release notes.
+5. **Push the tag:** `git push origin vX.Y.Z`.
+6. **Create the GitHub release:**
+   ```bash
+   gh release create vX.Y.Z --verify-tag --notes-file <path-to-notes.md>
+   ```
+   Add `--prerelease` for a `-rc.N` build.
+7. **Attach a source archive and its checksum:**
+   ```bash
+   shasum -a 256 evertimer_redmine_plugin-X.Y.Z.zip > evertimer_redmine_plugin-X.Y.Z.zip.sha256
+   gh release upload vX.Y.Z evertimer_redmine_plugin-X.Y.Z.zip evertimer_redmine_plugin-X.Y.Z.zip.sha256
+   ```
+8. **Mark "latest" only for stable releases** — a `-rc.N` pre-release should never be the "latest" release GitHub shows by default (`--prerelease` handles this for `gh release create`; double-check on the release page).
 
 ---
 
