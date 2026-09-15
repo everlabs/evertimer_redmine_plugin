@@ -1,10 +1,5 @@
-# Explicit up/down rather than `change`: with a reversible `change`, a full rollback
-# (VERSION=0) reverts 002 first — whose `down` re-adds the single-column spent_on index —
-# and then replays this migration inside `revert`, where the `unless index_exists?` guard
-# is evaluated live. It would see the index 002 had just recreated, skip the block, and so
-# never record the add_index whose inverse remove_index the rollback depends on. The index
-# survived the rollback, contradicting the README's uninstall contract. Running the guard
-# on each side explicitly makes both directions correct.
+# Explicit up/down: with `change`, a VERSION=0 rollback re-evaluates the guard after
+# 002's down has recreated the index, so the index would never be removed.
 class AddIndexOnSpentTimeToTimeEntries < ActiveRecord::Migration[4.2]
   def up
     unless index_exists?(:time_entries, :spent_on)

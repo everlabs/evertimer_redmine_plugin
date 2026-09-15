@@ -1,4 +1,4 @@
-<%# Include necessary calendar headers for date-type custom fields %>
+<%# Date-format custom fields need the calendar assets %>
 <% include_calendar_headers_tags %>
 <% content_for :header_tags do %>
   <meta name="custom-field-delete-confirmation" content="<%= l(:non_billable_custom_field_destroy_confirmation) %>" />
@@ -25,7 +25,6 @@
                  prompt: l(:label_select_custom_field) %>
 </span>
 
-<%# Hidden table for templates used when adding new custom fields dynamically %>
 <table id="customFieldTemplates" style="display: none;">
   <tbody>
     <%= safe_join(all_custom_field_values.map { |value| render_custom_field_row(value, is_template: true) }) %>

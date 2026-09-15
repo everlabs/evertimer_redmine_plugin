@@ -4,25 +4,12 @@ class EvertimerUserStatsController < ApplicationController
   accept_api_auth :index, :custom_fields
   before_action :require_login
 
-  # session_expiration is deliberately NOT skipped: it is the only place Redmine
-  # verifies the server-side session token (application_controller.rb -> session_expired?
-  # -> User.verify_session_token). find_current_user's session branch trusts
-  # session[:user_id] on its own, and Redmine's cookie session store keeps cookies
-  # cryptographically valid forever, so skipping the check would let a logged-out,
-  # expired or stolen cookie keep authenticating here indefinitely — it still protects
-  # pure-cookie callers. Contrary to what this comment used to claim, the extension's
-  # host-permission fetches DO carry the accumulated _redmine_session cookie alongside
-  # X-Redmine-API-Key (empirically proven, T-03.1-01 / G-03.1-9), so key/cookie
-  # conflicts are real on this controller; the find_current_user override below is the
-  # enforcement that resolves them in the key's favor.
+  # Don't skip session_expiration: it is Redmine's only server-side check of the session
+  # token, so without it a logged-out or stolen session cookie would keep working here.
 
-  # Redmine stores start_of_week as 1..7 (monday..sunday), both in Setting.start_of_week
-  # and in the :general_first_day_of_week locale key (see application_helper.rb:1634-1638).
+  # Redmine's start_of_week is 1..7, Monday first.
   DAY_SYMBOLS = %i[monday tuesday wednesday thursday friday saturday sunday].freeze
 
-  # The only custom-field attributes the extension reads. Everything else on the
-  # record is internal Redmine configuration (visibility, filtering, positioning)
-  # that no client needs, so it stays out of the payload.
   WHITELISTED_CUSTOM_FIELD_ATTRIBUTES = %w[
     id
     name
@@ -47,71 +34,38 @@ class EvertimerUserStatsController < ApplicationController
 
     key_basis = stats_key_basis(ranges, scan_from, scan_to)
 
-    # The user hash is never cached (it is appended per request), so its freshness
-    # has to ride on the ETag instead: a profile edit moves User#updated_on and
-    # busts only the include=user ETag. The literal marker keeps the two variants
-    # of the same stats from ever colliding on one ETag value.
+    # The user payload isn't cached, so profile edits must change the ETag instead.
+    # The 'user' marker keeps the two variants' ETags distinct.
     etag_basis = with_user ? key_basis + [User.current.updated_on&.iso8601(6), 'user'] : key_basis
 
-    # fresh_when (inside stale?) answers 304 with an empty body itself, before any
-    # fragment lookup or stats SQL runs (actionpack conditional_get.rb:121).
     return unless stale?(etag: etag_basis)
 
-    # The fragment key stays the stats-only basis in BOTH cases: the cache holds
-    # the stats JSON and nothing else.
     stats_json = read_fragment(key_basis)
     unless stats_json
       stats_json = compute_stats_json(ranges, scan_from, scan_to)
-      # write_fragment requires a String (it calls #to_str) and no-ops safely when
-      # perform_caching is false.
-      #
-      # expires_in is required for hygiene, not correctness: the key embeds three date
-      # windows, so it rotates at every user's midnight and on every settings save, and
-      # each rotation orphans the previous entry. Redmine ships perform_caching = true in
-      # production without configuring a cache_store, which means Rails' default FileStore
-      # in tmp/cache — a store that never evicts entries lacking an expiry. Without this,
-      # every active user leaves at least one dead fragment per day until an operator
-      # clears tmp/cache by hand. The key is guaranteed dead once the day window rolls, so
-      # 24 hours is the shortest value that never truncates a still-valid entry, and it
-      # also bounds the custom-field staleness class documented in the README.
+      # The key rotates daily, and Rails' default FileStore never evicts entries without an expiry.
       write_fragment(key_basis, stats_json, expires_in: 24.hours)
     end
 
     if with_user
-      # Parse/merge rather than string surgery: the six stats keys keep their order
-      # (Ruby hashes are insertion-ordered) and "user" is appended last.
       payload = JSON.parse(stats_json)
       payload['user'] = user_payload
       render json: payload, status: :ok
     else
-      # Passthrough render keeps cached and freshly computed responses byte-identical.
       render body: stats_json, content_type: 'application/json'
     end
   end
 
   def custom_fields
-    # Same scope chain and same top-level-array shape as before; only the set of
-    # serialized attributes narrows. possible_values (serialize) and format_store
-    # (store) still come out as an array and a hash respectively.
     render json: TimeEntryCustomField.visible.sorted.distinct.as_json(only: WHITELISTED_CUSTOM_FIELD_ATTRIBUTES),
            status: :ok
   end
 
   private
 
-  # Redmine's find_current_user resolves session[:user_id] first on any non-api-format
-  # request (application_controller.rb:112-113), so a bare /evertimer/user_stats call
-  # carrying both a _redmine_session cookie and an X-Redmine-API-Key header used to be
-  # served the COOKIE's account while the key was ignored — the T-03.1-01 / G-03.1-9
-  # cross-account bleed. The extension's host-permission fetches do carry that cookie,
-  # so a presented key must win. Fail closed: an invalid presented key resolves to nil
-  # (-> anonymous -> require_login answers 401), never silently back to the cookie
-  # account, because that silent fallback IS the bleed. Every caller that does not
-  # present both a session cookie and a key (cookie-only, keyless, api-format,
-  # autologin, HTTP Basic, and Switch-User without a cookie) takes the bare super and
-  # behaves exactly as core. The key-over-cookie branch intentionally skips core's
-  # X-Redmine-Switch-User handling (an admin's switch header is ignored there, so they
-  # get their own stats) and does not assign User#remote_ip.
+  # Core prefers the session cookie over the API key on non-API-format requests, and the
+  # extension sends both, so the key must win. An invalid key yields no user (401) rather
+  # than falling back to the cookie's account. X-Redmine-Switch-User is ignored on this path.
   def find_current_user
     if !api_request? && session[:user_id] && Setting.rest_api_enabled? && accept_api_auth? &&
        (key = api_key_from_request)
@@ -121,10 +75,7 @@ class EvertimerUserStatsController < ApplicationController
     end
   end
 
-  # Exactly the fields the extension stores for the signed-in user, under Redmine's
-  # own names (users/show.api.rsb:2-12). The API credential is deliberately absent:
-  # the caller already holds the key it authenticated with, so echoing it would only
-  # widen the blast radius of a leaked response.
+  # Deliberately excludes the API key and email.
   def user_payload
     user = User.current
 
@@ -134,11 +85,7 @@ class EvertimerUserStatsController < ApplicationController
       'lastname' => user.lastname
     }
 
-    # Same guard and same helper call as core's users API (users/show.api.rsb:12) —
-    # key absent (not null) when the user has no mail or Gravatar is off, which the
-    # extension's default-avatar fallback already covers.
-    # Called through `helpers` because gravatar_url internally uses the view helper
-    # `h`, which a bare controller instance does not respond to.
+    # Mirrors core's users API. Goes through `helpers` because gravatar_url calls the view helper `h`.
     if user.mail.present? && Setting.gravatar_enabled?
       payload['avatar_url'] =
         helpers.gravatar_url(user.mail, {:rating => nil, :size => nil, :default => Setting.gravatar_default})
@@ -147,8 +94,6 @@ class EvertimerUserStatsController < ApplicationController
     payload
   end
 
-  # Date ranges follow the requesting user's time zone and Redmine's start-of-week
-  # setting, falling back to the locale default when the setting is blank.
   def stats_date_ranges
     user_today = User.current.today
 
@@ -162,22 +107,9 @@ class EvertimerUserStatsController < ApplicationController
     }
   end
 
-  # Cache-key / ETag basis. The date-window components make the key change at the
-  # user's midnight (and whenever the week start or time zone moves the window);
-  # MAX(time_entries.updated_on) catches edits, COUNT(*) catches deletions.
-  #
-  # The billable split also reads issues.tracker_id and issues.status_id (see
-  # non_billable_predicate_sql), and none of those edits touch time_entries — closing an
-  # issue, changing its tracker or moving it across projects would otherwise be served
-  # stale from the fragment cache and behind a 304 until the day window rolled. So the
-  # basis also carries MAX(issues.updated_on) over the issues the scanned entries point
-  # at. It rides on the same aggregate query via a LEFT OUTER JOIN, which cannot multiply
-  # rows (time_entries.issue_id is a single nullable FK), so COUNT(*) is unaffected.
-  #
-  # Still NOT covered: editing only a time entry's custom-field value. custom_values has
-  # no timestamp column at all, and Redmine writes custom values in an after_save without
-  # touching the parent row, so there is nothing cheap to aggregate. That staleness class
-  # is documented in the README and bounded by the fragment's expires_in.
+  # Cache key and ETag basis. MAX/COUNT over time entries catch edits and deletions;
+  # MAX(issues.updated_on) catches tracker/status changes that move the billable split.
+  # Custom-value-only edits aren't detected (no timestamp), which expires_in bounds.
   def stats_key_basis(ranges, scan_from, scan_to)
     entries_table = TimeEntry.table_name
     issues_table  = Issue.table_name
@@ -195,8 +127,7 @@ class EvertimerUserStatsController < ApplicationController
 
     settings_stamp = Setting.find_by(name: 'plugin_evertimer_redmine_plugin')&.updated_on&.iso8601(6) || 'unsaved'
 
-    # Microsecond stamps, like settings_stamp. The guard keeps nil (no entries) as nil and
-    # passes through the raw String the SQLite adapter returns for MAX() without type casting.
+    # SQLite returns MAX() as a raw String, which is kept as is.
     max_updated_on = max_updated_on.iso8601(6) if max_updated_on.respond_to?(:iso8601)
     max_issue_updated_on = max_issue_updated_on.iso8601(6) if max_issue_updated_on.respond_to?(:iso8601)
 
@@ -210,23 +141,15 @@ class EvertimerUserStatsController < ApplicationController
       max_updated_on,
       entries_count,
       settings_stamp,
-      # Appended last so the pre-existing components keep their exact positions.
       max_issue_updated_on
     ]
   end
 
-  # One conditional-aggregation pass over the scan window returns all six figures.
   def compute_stats_json(ranges, scan_from, scan_to)
     table = TimeEntry.table_name
 
-    # The billable predicate is already fully sanitized by non_billable_predicate_sql
-    # (every settings-derived value is bound there), so it must NOT be interpolated into
-    # the array handed to the outer sanitize pass. replace_bind_variables validates arity
-    # with statement.count("?") (activerecord sanitization.rb), and that count includes
-    # '?' characters sitting inside quoted string literals. An admin-configured
-    # custom-field value such as 'Billable?' would therefore inflate the placeholder
-    # count and raise ActiveRecord::PreparedStatementInvalid on every cache-miss request.
-    # Sanitize the skeleton against a sentinel first, then splice the predicate in.
+    # The predicate is already sanitized and may contain '?' inside quoted values, which
+    # breaks sanitize_sql_array's placeholder count, so it is spliced in afterwards.
     billable_marker = '__EVERTIMER_BILLABLE__'
 
     sql = TimeEntry.sanitize_sql_array(
@@ -253,16 +176,12 @@ class EvertimerUserStatsController < ApplicationController
       ]
     )
 
-    # Block form on purpose: a String replacement argument would interpret backslash
-    # escapes (\\0, \\1, \\\\) that can legitimately occur inside a quoted custom-field
-    # value, corrupting the spliced predicate.
+    # Block form: a String replacement would interpret backslashes in custom-field values.
     billable = "NOT (#{non_billable_predicate_sql})"
     sql = sql.gsub(billable_marker) { billable }
 
     row = TimeEntry.connection.select_one(sql) || {}
 
-    # An empty period sums to SQL NULL; today's implementation renders 0.0 there
-    # (TimeEntry#sum on a float column), so the mapping keeps float semantics.
     {
       today: stats_value(row['today']),
       this_week: stats_value(row['this_week']),
@@ -277,10 +196,7 @@ class EvertimerUserStatsController < ApplicationController
     value.nil? ? 0.0 : value.to_f
   end
 
-  # SQL predicate matching the time entries the admin configured as non-billable.
-  # Every settings-derived value is bound, never interpolated. Issue- and
-  # custom-field-based criteria use EXISTS so the predicate stays two-valued:
-  # a LEFT JOIN would yield NULL for issue-less entries and misclassify them.
+  # EXISTS rather than a LEFT JOIN, so entries without an issue don't evaluate to NULL.
   def non_billable_predicate_sql
     settings = Setting.plugin_evertimer_redmine_plugin || {}
     table = TimeEntry.table_name
@@ -315,7 +231,6 @@ class EvertimerUserStatsController < ApplicationController
     custom_fields = settings['non_billable_custom_fields']
     if custom_fields.is_a?(Hash)
       custom_fields.each do |field_id, value|
-        # A blank configured value must match nothing at all.
         values = Array(value).reject(&:blank?)
         next if field_id.blank? || values.empty?
 

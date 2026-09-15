@@ -29,8 +29,6 @@ This plugin extends the capabilities of the [EverTimer](https://chromewebstore.g
 
 2. **Custom Fields** (`GET /evertimer/custom_fields.json`): the `TimeEntryCustomField` records visible to the requesting user, narrowed to the twelve attributes EverTimer actually needs to render a custom-field input. This addresses limitations with the core Redmine API endpoint `/custom_fields.json`, which requires admin privileges and returns comprehensive details unnecessary for [EverTimer](https://chromewebstore.google.com/detail/evertimer/kjbdlnkafjlgnbmbeihkampliednpmgk).
 
-<!-- TODO: screenshots (stats circles, plugin settings) from the final rc, with names neutralised -->
-
 Before you start
 ----------------
 

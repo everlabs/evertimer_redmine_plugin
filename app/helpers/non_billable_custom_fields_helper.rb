@@ -1,33 +1,20 @@
 # frozen_string_literal: true
 
-# Provides helper methods for managing non-billable custom fields within plugin settings.
 module NonBillableCustomFieldsHelper
-  # Renders an HTML table row for a given custom field value.
-  # This row includes the custom field's name, its value input, and a delete button.
-  # @param custom_field_value [CustomFieldValue] The value object associated with the custom field.
-  # @param is_template [Boolean] Flag to indicate if the row should be rendered for a template.
-  #                              Templates are used for dynamically adding new fields via JavaScript.
   def render_custom_field_row(custom_field_value, is_template: false)
     field_id = "time_entry_custom_field_values_#{custom_field_value.custom_field_id}"
     row_data = { id: custom_field_value.custom_field_id }
-    # A template row cannot run the toolbar script here: it is hidden, and its clone is what gets the
-    # toolbar. It carries wikitoolbar_for's own output instead, which custom_fields.js runs once the row
-    # is cloned into the table. This also loads the jstoolbar assets when no selected row did (PLUG-38).
+    # Template rows are hidden, so custom_fields.js runs this toolbar script on the cloned row instead.
     if custom_field_value.custom_field.full_text_formatting? && is_template
       row_data[:wikitoolbar] = wikitoolbar_for(field_id)
     end
 
     result = content_tag(:tr, id: "template_#{custom_field_value.custom_field_id}", data: row_data) do
-      # Custom field label
       concat content_tag(:td, TimelogController.helpers.custom_field_label_tag(:time_entry, custom_field_value), class: "field-name")
-      # Custom field input
       concat content_tag(:td, TimelogController.helpers.custom_field_tag(:time_entry, custom_field_value), class: "field-value")
-      # Delete button
       concat content_tag(:td, link_to(l(:button_delete), '#', class: 'delete-custom-field icon-only icon-del', title: l(:button_delete)), class: "buttons" )
     end
 
-    # Optionally append a wiki toolbar for fields with full text formatting enabled.
-    # The toolbar is not added for template rows.
     if custom_field_value.custom_field.full_text_formatting? && !is_template
       result += wikitoolbar_for("time_entry_custom_field_values_#{custom_field_value.custom_field_id}")
     end
@@ -35,35 +22,25 @@ module NonBillableCustomFieldsHelper
     result
   end
 
-  # Selects and prepares custom fields that have been marked as non-billable by the user.
-  # @return [Array<CustomFieldValue>] The selected custom field values, prepared with user-configured values.
   def selected_non_billable_custom_fields
     selected_option_ids = Setting.plugin_evertimer_redmine_plugin['non_billable_custom_fields']&.keys&.map(&:to_i) || []
 
     all_custom_field_values.select { |el| el.custom_field.id.in?(selected_option_ids) }.map do |cfv|
       val = Setting.plugin_evertimer_redmine_plugin['non_billable_custom_fields'][cfv.custom_field.id.to_s]
-      # Rails-6.1-only blank compaction is unavailable on Rails 5.2 / Redmine 4.1.1 —
-      # the non-destructive rejection below is the compatible equivalent (PLUG-02 sweep).
-      # It must stay non-destructive: Setting.plugin_evertimer_redmine_plugin returns the
-      # object memoized in Setting's process-global @cached_settings hash, shared across
-      # every request in the process, so `reject!` would edit Redmine's cached settings
-      # in place from a view helper and silently diverge them from the persisted value.
+      # Not reject! (it would mutate Redmine's process-wide settings cache), nor compact_blank (Rails 6.1+).
       val = val.reject(&:blank?) if val.is_a?(Array)
       cfv.value = val
       cfv
     end
   end
 
-  # Gathers available custom fields that have not been selected by the user.
-  # @return [Array<CustomFieldValue>] Custom fields available for selection.
   def available_non_billable_custom_fields
     selected_option_ids = Setting.plugin_evertimer_redmine_plugin['non_billable_custom_fields']&.keys&.map(&:to_i) || []
 
     all_custom_field_values.reject { |el| el.custom_field_id.in?(selected_option_ids) }
   end
 
-  # Fetches all custom field values, excluding those of type 'attachment' (they are not supported yet)
-  # @return [Array<CustomFieldValue>] All custom field values, filtered by type.
+  # Attachment custom fields are not supported.
   def all_custom_field_values
     @all_custom_field_values ||= TimeEntry.new.custom_field_values.reject { |el| el.custom_field.field_format == 'attachment' }
   end

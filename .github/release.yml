@@ -1,10 +1,5 @@
 # Auto-generated release notes configuration.
 # https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
-#
-# Owner action required: create these labels in the repository before relying on
-# auto-generated notes — they don't exist yet (`gh label create <name> --color <hex>`):
-#   breaking-change, enhancement, bug, security, documentation, dependencies,
-#   ignore-for-release
 
 changelog:
   exclude:
