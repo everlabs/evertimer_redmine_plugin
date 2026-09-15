@@ -54,33 +54,41 @@ When submitting a pull request (PR), please use the [following template](.github
 
 By following this template and providing thorough information, you help ensure that your pull request can be reviewed and merged efficiently. If you have any questions or need further assistance, don't hesitate to reach out to the project maintainers.
 
-Running Tests and Setting Up Your Environment
----------------------------------------------
-To set up your development environment for EverTimer Redmine plugin and run tests, follow these steps:
+Testing Your Changes
+--------------------
+This plugin doesn't have an automated test suite yet — `test/` only holds the Redmine-provided
+`test_helper.rb`, and there's no `Gemfile` or `.rspec` here, so `bundle exec rspec` has nothing to run.
+A Redmine-standard test suite (Minitest under `test/`, run with `bin/rails redmine:plugins:test
+NAME=evertimer_redmine_plugin` from the Redmine root) is planned; if you'd like to contribute one, add
+unit/functional tests under `test/unit` and `test/functional` following Redmine's own plugin testing
+conventions.
 
-1. Clone the project repository from GitHub:
+Until then, verify changes manually against a real Redmine instance:
+
+1. Install the plugin per the [README](README.md#installation): clone it into that Redmine's
+   `plugins/` directory, then run its migrations from the Redmine root:
 ```bash
-git clone https://github.com/everlabs/evertimer_redmine_plugin.git
+bundle exec rake redmine:plugins:migrate NAME=evertimer_redmine_plugin RAILS_ENV=production
 ```
 
-2. Navigate to the project directory:
+2. Restart Redmine the way your deployment runs it (see the README's **Installation** step 3), then
+   confirm **Administration** > **Plugins** lists **Evertimer plugin**.
+
+3. Exercise both endpoints with a valid API key:
 ```bash
-cd evertimer_redmine_plugin
+curl -i -H "X-Redmine-API-Key: your_api_key" -H "Accept: application/json" \
+  https://your-redmine-domain/evertimer/user_stats
+curl -i -H "X-Redmine-API-Key: your_api_key" -H "Accept: application/json" \
+  https://your-redmine-domain/evertimer/custom_fields.json
 ```
+Confirm each returns `200` with a JSON body that reflects your change, and that a missing/invalid key
+gets a `401`.
 
-3. Install dependencies:
-```bash
-bundle install
-```
+4. Open the plugin's settings screen (**Administration** > **Plugins** > **Evertimer Redmine plugin** >
+   **Configure**) and confirm it still loads and saves correctly.
 
-4. Set up any necessary configuration files or environment variables.
-
-5. Run tests to ensure everything is working correctly:
-```bash
-bundle exec rspec
-```
-
-6. If you encounter any issues or have questions, don't hesitate to reach out to the community or project maintainers for assistance.
+5. If you encounter any issues or have questions, don't hesitate to reach out to the community or
+   project maintainers for assistance.
 
 ---
 
