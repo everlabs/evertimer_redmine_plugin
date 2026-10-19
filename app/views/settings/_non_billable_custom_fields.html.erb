@@ -1,0 +1,32 @@
+<%# Date-format custom fields need the calendar assets %>
+<% include_calendar_headers_tags %>
+<% content_for :header_tags do %>
+  <meta name="custom-field-delete-confirmation" content="<%= l(:non_billable_custom_field_destroy_confirmation) %>" />
+  <%= javascript_include_tag :custom_fields, plugin: :evertimer_redmine_plugin %>
+<% end %>
+
+<table id="customFieldsTable" class="list">
+  <thead>
+  <tr>
+    <th class="field-name"><%= l(:label_custom_field) %></th>
+    <th class="field-value"><%= l(:label_custom_field_value) %></th>
+    <th class="buttons"></th>
+  </tr>
+  </thead>
+  <tbody><%= safe_join(selected_non_billable_custom_fields.map { |value| render_custom_field_row(value) }) %></tbody>
+</table>
+
+<span>
+  <%= select_tag 'available_custom_fields',
+                 options_for_select(available_non_billable_custom_fields.map { |op|
+                   [op.custom_field.name, op.custom_field_id]
+                 }),
+                 id: "available_custom_fields",
+                 prompt: l(:label_select_custom_field) %>
+</span>
+
+<table id="customFieldTemplates" style="display: none;">
+  <tbody>
+    <%= safe_join(all_custom_field_values.map { |value| render_custom_field_row(value, is_template: true) }) %>
+  </tbody>
+</table>
