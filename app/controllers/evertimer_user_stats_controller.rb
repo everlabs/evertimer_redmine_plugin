@@ -122,7 +122,8 @@ class EvertimerUserStatsController < ApplicationController
   # Cache key and ETag basis. MAX/COUNT/SUM over time entries catch edits and deletions
   # (SUM covers same-second edits where timestamps have 1s resolution);
   # MAX(issues.updated_on) catches tracker/status changes that move the billable split.
-  # Custom-value-only edits aren't detected (no timestamp), which expires_in bounds.
+  # Custom-value-only edits are caught on Redmine 4.2 and later, which touches the entry;
+  # on 4.1 they aren't (no timestamp column), which expires_in bounds.
   def stats_key_basis(ranges, scan_from, scan_to)
     entries_table = TimeEntry.table_name
     issues_table  = Issue.table_name
